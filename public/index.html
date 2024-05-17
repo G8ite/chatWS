@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Chat WebSocket</title>
+    <style>
+        #chatbox div {
+            margin-bottom: 5px;
+        }
+
+        .local-message {
+            color: blue;
+        }
+
+        .websocket-message {
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Chat WebSocket</h1>
+    <input type="text" id="username" placeholder="Entrez votre nom d'utilisateur">
+    <button id="joinbtn" onclick="joinChat()">Rejoindre le chat</button>
+    <div id="chatbox" style="border:1px solid black; width: 300px; height: 200px; overflow-y: scroll;"></div>
+    <input type="text" id="message" placeholder="Entrez votre message" style="display:none;">
+    <button id="sendbtn" onclick="sendMessage()" style="display:none;">Envoyer</button>
+
+    <script>
+        let username;
+        let socket;
+        const chatbox = document.getElementById('chatbox');
+        const messageInput = document.getElementById('message');
+        const sendBtn = document.getElementById('sendbtn');
+
+        // Définition des écouteurs WebSocket en dehors de la fonction joinChat
+        socket = new WebSocket('ws://localhost:8080');
+
+        socket.onopen = () => {
+            console.log('Connecté au serveur WebSocket');
+        };
+
+        socket.onmessage = (event) => {
+            console.log('Message reçu du serveur:', event.data);
+
+            // Ajouter le message WebSocket avec la couleur rouge
+            appendWebSocketMessage(event.data);
+        };
+
+        socket.onclose = () => {
+            console.log('Connexion fermée par le serveur');
+            appendWebSocketMessage('Connexion fermée par le serveur');
+        };
+
+        function joinChat() {
+            username = document.getElementById('username').value;
+            if (username) {
+                document.getElementById('username').style.display = 'none';
+                document.getElementById('joinbtn').style.display = 'none';
+                messageInput.style.display = 'inline';
+                sendBtn.style.display = 'inline';
+
+                // Envoi du message de connexion
+                socket.send(`${username} connecté`);
+            }
+        }
+
+        function appendLocalMessage(message) {
+            const messageElement = document.createElement('div');
+            const now = new Date();
+            const timestamp = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+
+            messageElement.classList.add('local-message'); // Utiliser une classe pour la couleur bleue
+            messageElement.textContent = `[${timestamp}] ${message}`;
+            chatbox.appendChild(messageElement);
+            chatbox.scrollTop = chatbox.scrollHeight;
+        }
+
+        function appendWebSocketMessage(message) {
+            const messageElement = document.createElement('div');
+            const now = new Date();
+            const timestamp = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+
+            messageElement.classList.add('websocket-message'); // Utiliser une classe pour la couleur rouge
+
+            if (message instanceof Blob) {
+                const reader = new FileReader();
+                reader.onload = function () {
+                    const text = reader.result;
+                    messageElement.textContent = `[${timestamp}] ${text}`;
+                    chatbox.appendChild(messageElement);
+                    chatbox.scrollTop = chatbox.scrollHeight;
+                };
+                reader.readAsText(message);
+            } else {
+                messageElement.textContent = `[${timestamp}] ${message}`;
+                chatbox.appendChild(messageElement);
+                chatbox.scrollTop = chatbox.scrollHeight;
+            }
+        }
+
+        function sendMessage() {
+            const messageText = messageInput.value;
+            if (messageText && socket && socket.readyState === WebSocket.OPEN) {
+                const messageToSend = `${username}: ${messageText}`;
+                socket.send(messageToSend);
+
+                // Ajouter le message local avec la couleur bleue
+                appendLocalMessage(messageToSend);
+
+                messageInput.value = '';
+            }
+        }
+
+    </script>
+</body>
+
+</html>
